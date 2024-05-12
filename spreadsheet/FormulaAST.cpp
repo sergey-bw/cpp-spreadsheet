@@ -143,25 +143,29 @@ namespace ASTImpl {
             }
 
             double Evaluate(const CellLookup& cell_lookup) const override {
+                double lhs = lhs_->Evaluate(cell_lookup);
+                double rhs = rhs_->Evaluate(cell_lookup);
                 double result;
 
                 switch (type_) {
                     case Type::Add: {
-                        result = lhs_->Evaluate(cell_lookup) + rhs_->Evaluate(cell_lookup);
+                        result = lhs + rhs;
                         break;
                     }
                     case Type::Subtract: {
-                        result = lhs_->Evaluate(cell_lookup) - rhs_->Evaluate(cell_lookup);
+                        result = lhs - rhs;
                         break;
                     }
                     case Type::Multiply: {
-                        result = lhs_->Evaluate(cell_lookup) * rhs_->Evaluate(cell_lookup);
+                        result = lhs * rhs;
                         break;
                     }
                     case Type::Divide: {
-                        result = lhs_->Evaluate(cell_lookup) / rhs_->Evaluate(cell_lookup);
+                        result = lhs / rhs;
                         break;
                     }
+                    default:
+                        assert(false);
                 }
 
                 if (!std::isfinite(result)) {
@@ -205,11 +209,16 @@ namespace ASTImpl {
             }
 
             double Evaluate(const CellLookup& cell_lookup) const override {
-                if (type_ == Type::UnaryMinus) {
+                switch (type_) {
+                case Type::UnaryMinus: {
                     return - operand_->Evaluate(cell_lookup);
                 }
-
-                return operand_->Evaluate(cell_lookup);
+                case Type::UnaryPlus: {
+                    return operand_->Evaluate(cell_lookup);
+                }
+                default:
+                    assert(false);
+                }
             }
 
         private:

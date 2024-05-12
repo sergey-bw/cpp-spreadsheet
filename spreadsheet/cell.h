@@ -31,11 +31,8 @@ private:
     class FormulaImpl;
 
     bool WouldIntroduceCircularDependency(const Impl& new_impl) const;
-    bool HasCircularDependencyRecursive(const Cell* target_cell_ptr
-        , std::unordered_set<const Cell*>& visited_cell) const;
-
-    void UpdateRefs();
     void InvalidateCacheRecursive(bool force = false);
+    void UpdateRefs();
 
     std::unique_ptr<Impl> impl_;
     Sheet& sheet_;

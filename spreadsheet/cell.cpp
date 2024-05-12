@@ -3,6 +3,7 @@
 #include "sheet.h"
 
 #include <cassert>
+#include <deque>
 #include <iostream>
 #include <string>
 #include <optional>
@@ -38,9 +39,9 @@ void Cell::Set(std::string text) {
 		throw CircularDependencyException("Circular Dependency Exception"s);
 	}
 
-	InvalidateCacheRecursive(true);
 	impl_ = std::move(new_impl);
 	UpdateRefs();
+	InvalidateCacheRecursive(true);
 }
 
 void Cell::Clear() {
@@ -76,51 +77,46 @@ void Cell::ClearCache() {
 	cache_.reset();
 }
 
-bool Cell::HasCircularDependencyRecursive(const Cell* target_cell_ptr, std::unordered_set<const Cell*>& visited_cells) const {
-	if (this == target_cell_ptr) {
-		return true;
-	}
-	visited_cells.insert(this);
-
-	for (const Cell* cell_ptr : this->ref_to_cells_) {
-		if (cell_ptr == nullptr || visited_cells.count(cell_ptr) != 0) {
-			continue;
-		}
-		if (cell_ptr->HasCircularDependencyRecursive(target_cell_ptr, visited_cells)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 bool Cell::WouldIntroduceCircularDependency(const Impl& new_impl) const {
 	if (new_impl.GetReferencedCells().empty()) {
 		return false;
 	}
 
-	std::unordered_set<const Cell*> ref_to_cells;
+	std::deque<const Cell*> ref_to_cells;
 	for (const auto& pos : new_impl.GetReferencedCells()) {
 		// Если еще нет ячейки, на которую ссылается, пропускаем
 		// Создадим ее при обновлении связей
 		if (sheet_.GetConcreteCell(pos) == nullptr) {
 			continue;
 		}
-
-		// Если ссылается сама на себя
-		if (sheet_.GetConcreteCell(pos) == this) {
-			return true;
-		}
-		ref_to_cells.insert(sheet_.GetConcreteCell(pos));
+		ref_to_cells.push_back(sheet_.GetConcreteCell(pos));
 	}
 
+	// В начале дека проверяем элементы на циклицескую ссылку
+	// В конец дека добавляем дочерние узлы
 	std::unordered_set<const Cell*> visited_cells;
-	for (const Cell* cell_ptr : ref_to_cells) {
-		visited_cells.insert(cell_ptr);
-		if (cell_ptr == this || cell_ptr->HasCircularDependencyRecursive(this, visited_cells)) {
-			return true;
+	while (!ref_to_cells.empty()) {
+		if (ref_to_cells.front() != nullptr && visited_cells.count(ref_to_cells.front()) == 0) {
+			if (ref_to_cells.front() == this) {
+				return true;
+			}
+			visited_cells.insert(ref_to_cells.front());
+			ref_to_cells.insert(ref_to_cells.end()
+				, ref_to_cells.front()->ref_to_cells_.begin()
+				, ref_to_cells.front()->ref_to_cells_.end());
 		}
+		ref_to_cells.pop_front();
 	}
 	return false;
+}
+
+void Cell::InvalidateCacheRecursive(bool force) {
+	if (force || HasCache()) {
+		ClearCache();
+	}
+	for (Cell* cell_ptr : ref_from_cells_) {
+		cell_ptr->InvalidateCacheRecursive(force);
+	}
 }
 
 void Cell::UpdateRefs() {
@@ -140,15 +136,6 @@ void Cell::UpdateRefs() {
 		}
 		cell_ptr->ref_from_cells_.insert(this);
 		ref_to_cells_.insert(cell_ptr);
-	}
-}
-
-void Cell::InvalidateCacheRecursive(bool force) {
-	if (force || HasCache()) {
-		ClearCache();
-	}
-	for (Cell* cell_ptr : ref_from_cells_) {
-		cell_ptr->InvalidateCacheRecursive(force);
 	}
 }
 
