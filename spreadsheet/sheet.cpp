@@ -30,17 +30,11 @@ void Sheet::SetCell(Position pos, std::string text) {
 }
 
 const CellInterface* Sheet::GetCell(Position pos) const {
-    if (!pos.IsValid()) {
-        throw InvalidPositionException("Invalid cell position: {"s + std::to_string(pos.row) + std::to_string(pos.col) + "}"s);
-    }
-    return reinterpret_cast<const CellInterface*>(GetConcreteCell(pos));
+    return GetConcreteCell(pos);
 }
 
 CellInterface* Sheet::GetCell(Position pos) {
-    if (!pos.IsValid()) {
-        throw InvalidPositionException("Invalid cell position: {"s + std::to_string(pos.row) + std::to_string(pos.col) + "}"s);
-    }
-    return reinterpret_cast<CellInterface*>(GetConcreteCell(pos));
+    return const_cast<Cell*>(static_cast<const Sheet&>(*this).GetConcreteCell(pos));
 }
 
 void Sheet::ClearCell(Position pos) {
@@ -89,13 +83,7 @@ const Cell* Sheet::GetConcreteCell(Position pos) const {
 }
 
 Cell* Sheet::GetConcreteCell(Position pos) {
-    if (!pos.IsValid()) {
-        throw InvalidPositionException("Invalid cell position: {"s + std::to_string(pos.row) + std::to_string(pos.col) + "}"s);
-    }
-    if (cells_.size() > static_cast<size_t>(pos.row) && cells_[pos.row].size() > static_cast<size_t>(pos.col)) {
-        return cells_[pos.row][pos.col].get();
-    }
-    return nullptr;
+    return const_cast<Cell*>(static_cast<const Sheet&>(*this).GetConcreteCell(pos));
 }
 
 void Sheet::PrintCells(std::ostream& output,
